@@ -145,6 +145,8 @@ def process_audio():
         print(f"Unexpected error: {e}")
         traceback.print_exc()
         return jsonify({'error': 'An unexpected error occurred.'}), 500
+    finally:
+        os.remove(audio_file)
 
 if __name__ == "__main__":
     app.run()
