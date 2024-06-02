@@ -38,17 +38,27 @@ def recognize_from_file(audio_file):
     speech_config = speechsdk.SpeechConfig(subscription=SPEECH_KEY, region=SPEECH_REGION)
     audio_config = speechsdk.audio.AudioConfig(filename=audio_file)
     auto_detect_source_language_config = speechsdk.languageconfig.AutoDetectSourceLanguageConfig(languages=["hi-IN", "te-IN", "kn-IN", "mr-IN"])
+    
     speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config, auto_detect_source_language_config=auto_detect_source_language_config, audio_config=audio_config)
-
+    
     result = speech_recognizer.recognize_once()
     auto_detect_source_language_result = speechsdk.AutoDetectSourceLanguageResult(result)
     detected_language = auto_detect_source_language_result.language
+    
+    if not detected_language:
+        raise ValueError("Detected language is None or empty.")
+    
     print("Detected language:", detected_language)
+    
+    try:
+        speech_config.speech_recognition_language = detected_language
+    except RuntimeError as re:
+        print(f"RuntimeError when setting speech recognition language: {re}")
+        raise re
 
-    speech_config.speech_recognition_language = detected_language
     conversation_transcriber = speechsdk.transcription.ConversationTranscriber(speech_config=speech_config, audio_config=audio_config)
     transcribing_stop = False
-
+    
     output_list = []
 
     def stop_cb(evt: speechsdk.SessionEventArgs):
