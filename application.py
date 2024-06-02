@@ -4,15 +4,17 @@ import time
 import requests
 import traceback
 from flask import Flask, request, jsonify, render_template
-from dotenv import load_dotenv
 import azure.cognitiveservices.speech as speechsdk
 import tempfile
 
-# Load environment variables from .env file
-load_dotenv()
-
 application = Flask(__name__)
 app = application
+
+# Environment Variables
+AZURE_OPENAI_API_KEY = "0ed74a85c6fb49bd8bf653a4464b3aef"
+AZURE_OPENAI_ENDPOINT = "https://texttranslate.openai.azure.com/"
+SPEECH_KEY = "8adbc2b360ed4ab08473cbca8665dee6"
+SPEECH_REGION = "eastus"
 
 # Diarization and Transcription
 def conversation_transcriber_recognition_canceled_cb(evt: speechsdk.SessionEventArgs):
@@ -33,57 +35,47 @@ def conversation_transcriber_session_started_cb(evt: speechsdk.SessionEventArgs)
     print('SessionStarted event')
 
 def recognize_from_file(audio_file):
-    try:
-        speech_config = speechsdk.SpeechConfig(subscription=os.getenv('SPEECH_KEY'), region=os.getenv('SPEECH_REGION'))
-        audio_config = speechsdk.audio.AudioConfig(filename=audio_file)
-        auto_detect_source_language_config = speechsdk.languageconfig.AutoDetectSourceLanguageConfig(languages=["hi-IN", "te-IN", "kn-IN", "mr-IN"])
-        speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config, auto_detect_source_language_config=auto_detect_source_language_config, audio_config=audio_config)
+    speech_config = speechsdk.SpeechConfig(subscription=SPEECH_KEY, region=SPEECH_REGION)
+    audio_config = speechsdk.audio.AudioConfig(filename=audio_file)
+    auto_detect_source_language_config = speechsdk.languageconfig.AutoDetectSourceLanguageConfig(languages=["hi-IN", "te-IN", "kn-IN", "mr-IN"])
+    speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config, auto_detect_source_language_config=auto_detect_source_language_config, audio_config=audio_config)
 
-        result = speech_recognizer.recognize_once()
-        auto_detect_source_language_result = speechsdk.AutoDetectSourceLanguageResult(result)
-        detected_language = auto_detect_source_language_result.language
-        print("Detected language:", detected_language)
+    result = speech_recognizer.recognize_once()
+    auto_detect_source_language_result = speechsdk.AutoDetectSourceLanguageResult(result)
+    detected_language = auto_detect_source_language_result.language
+    print("Detected language:", detected_language)
 
-        # Ensure language detection was successful before setting the language
-        if detected_language:
-            speech_config.speech_recognition_language = detected_language
-            conversation_transcriber = speechsdk.transcription.ConversationTranscriber(speech_config=speech_config, audio_config=audio_config)
-            transcribing_stop = False
+    speech_config.speech_recognition_language = detected_language
+    conversation_transcriber = speechsdk.transcription.ConversationTranscriber(speech_config=speech_config, audio_config=audio_config)
+    transcribing_stop = False
 
-            output_list = []
+    output_list = []
 
-            def stop_cb(evt: speechsdk.SessionEventArgs):
-                print('CLOSING on {}'.format(evt))
-                nonlocal transcribing_stop
-                transcribing_stop = True
+    def stop_cb(evt: speechsdk.SessionEventArgs):
+        print('CLOSING on {}'.format(evt))
+        nonlocal transcribing_stop
+        transcribing_stop = True
 
-            conversation_transcriber.transcribed.connect(lambda evt: conversation_transcriber_transcribed_cb(evt, output_list))
-            conversation_transcriber.session_started.connect(conversation_transcriber_session_started_cb)
-            conversation_transcriber.session_stopped.connect(conversation_transcriber_session_stopped_cb)
-            conversation_transcriber.canceled.connect(conversation_transcriber_recognition_canceled_cb)
-            conversation_transcriber.session_stopped.connect(stop_cb)
-            conversation_transcriber.canceled.connect(stop_cb)
+    conversation_transcriber.transcribed.connect(lambda evt: conversation_transcriber_transcribed_cb(evt, output_list))
+    conversation_transcriber.session_started.connect(conversation_transcriber_session_started_cb)
+    conversation_transcriber.session_stopped.connect(conversation_transcriber_session_stopped_cb)
+    conversation_transcriber.canceled.connect(conversation_transcriber_recognition_canceled_cb)
+    conversation_transcriber.session_stopped.connect(stop_cb)
+    conversation_transcriber.canceled.connect(stop_cb)
 
-            conversation_transcriber.start_transcribing_async()
+    conversation_transcriber.start_transcribing_async()
 
-            while not transcribing_stop:
-                time.sleep(.5)
+    while not transcribing_stop:
+        time.sleep(.5)
 
-            conversation_transcriber.stop_transcribing_async()
-            print("Transcription completed successfully.")
-            return output_list
-        else:
-            print("Language detection failed. Unable to set recognition language.")
-            return None
-    except Exception as e:
-        print(f"Error in recognize_from_file: {e}")
-        traceback.print_exc()
-        return None
+    conversation_transcriber.stop_transcribing_async()
+    print("Transcription completed successfully.")
+    return output_list
 
 # Translation
 def translate_text(input_text):
-    api_key = os.getenv('AZURE_OPENAI_API_KEY')
-    api_base_url = os.getenv('AZURE_OPENAI_ENDPOINT')
+    api_key = AZURE_OPENAI_API_KEY
+    api_base_url = AZURE_OPENAI_ENDPOINT
     
     api_version = '2022-12-01'
     deployment_id = 'ver01'
@@ -155,8 +147,6 @@ def process_audio():
         print(f"Unexpected error: {e}")
         traceback.print_exc()
         return jsonify({'error': 'An unexpected error occurred.'}), 500
-    finally:
-        os.remove(audio_file)
 
 if __name__ == "__main__":
     app.run()
