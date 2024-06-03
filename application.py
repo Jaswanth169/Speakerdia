@@ -11,9 +11,9 @@ application = Flask(__name__)
 app = application
 
 # Environment Variables
-AZURE_OPENAI_API_KEY = "0ed74a85c6fb49bd8bf653a4464b3aef"
+AZURE_OPENAI_API_KEY = "0ed74a85c6fb49bd8bf653a4464b3ae"
 AZURE_OPENAI_ENDPOINT = "https://texttranslate.openai.azure.com/"
-SPEECH_KEY = "8adbc2b360ed4ab08473cbca8665dee6"
+SPEECH_KEY = "8adbc2b360ed4ab08473cbca8665dee"
 SPEECH_REGION = "eastus"
 
 # Diarization and Transcription
